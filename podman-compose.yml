@@ -1,0 +1,47 @@
+version: '3.9'
+services:
+    postgres_turnos:
+        image:  postgres:latest
+        container_name: dev_postgres_controlturnos
+        restart: always
+        environment:
+            POSTGRES_DB: turnos_db
+            POSTGRES_USER: turnouser
+            POSTGRES_PASSWORD: turnopass
+        ports:
+            - "5432:5432"
+        volumes:
+            - turnos_data:/var/lib/postgresql/data
+    app_turnos:
+        build: .
+        container_name: dev-app-turnos
+        image: sb-turnos:latest
+        restart: always
+        depends_on:
+            - postgres_turnos
+        ports:
+            - "8080:8080"
+        environment:
+            SPRING_DATASOURCE_URL: jdbc:postgresql://postgres_turnos:5432/turnos_db
+            SPRING_DATASOURCE_USERNAME: turnouser
+            SPRING_DATASOURCE_PASSWORD: turnopass
+        volumes:
+            - ./logs:/app/logs
+
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        container_name: dev_pgadmin_turnos
+        restart: always
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@timmynet.com
+            PGADMIN_DEFAULT_PASSWORD: adminpass
+        ports:
+            - "5050:80"
+        depends_on:
+            - postgres_turnos
+        volumes:
+            - pgadmin_data:/var/lib/pgadmin
+volumes:
+    turnos_data:
+    pgadmin_data:
+    logs:
