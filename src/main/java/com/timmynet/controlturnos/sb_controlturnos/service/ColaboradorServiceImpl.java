@@ -39,7 +39,7 @@ public class ColaboradorServiceImpl implements ColaboradorService{
 
     @Override
     public Optional<Colaborador> buscarPorEmail(String email) {
-        return repository.findByEmail(email);
+        return repository.buscarPorEmail(email);
     }
 
     @Override
