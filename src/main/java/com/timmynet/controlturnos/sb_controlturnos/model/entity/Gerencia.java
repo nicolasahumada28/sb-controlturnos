@@ -7,7 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -80,5 +79,9 @@ public class Gerencia {
         this.activo = activo;
     }
 
+    @Override
+    public String toString() {
+        return "Gerencia { id=" + id + ", nombre='" + nombre + "', descripcion='" + descripcion + "', idColaborador=" + idColaborador + ", fechaCreacion=" + fechaCreacion + ", fechaModificacion=" + fechaModificacion + ", activo=" + activo + " }";
+    }
     
 }
