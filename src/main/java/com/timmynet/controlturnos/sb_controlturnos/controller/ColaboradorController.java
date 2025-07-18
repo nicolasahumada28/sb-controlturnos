@@ -1,5 +1,7 @@
 package com.timmynet.controlturnos.sb_controlturnos.controller;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timmynet.controlturnos.sb_controlturnos.model.entity.Colaborador;
+import com.timmynet.controlturnos.sb_controlturnos.repository.ColaboradorRepository;
 import com.timmynet.controlturnos.sb_controlturnos.service.ColaboradorService;
 import com.timmynet.controlturnos.sb_controlturnos.util.LogIcons;
 
@@ -37,6 +40,9 @@ public class ColaboradorController {
 
     @Autowired
     public ColaboradorService service;
+
+    @Autowired
+    public ColaboradorRepository repository;
 
     @Autowired
     @Qualifier("prettyObjectMapper")
@@ -87,7 +93,9 @@ public class ColaboradorController {
             var lista = service.listarColaboradoresSinPag(); // Este método debe devolver List<Colaborador>
             if (lista.isEmpty()) {
                 logger.warn(LogIcons.WARNING + "No se encontraron colaboradores");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No se encontraron colaboradores");
+                Map<String, String> respuesta = new HashMap<>();
+                respuesta.put("mensaje", "No se encontraron colaboradores");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(respuesta);
             }
 
             String jsonResponse = logObjectMapper.writeValueAsString(lista);
@@ -167,6 +175,32 @@ public class ColaboradorController {
         logger.warn(LogIcons.WARNING+"Colaborador no encontrado con ID: {}", id);
         logger.info(LogIcons.CHECK+"Método borrarColaborador finalizado sin éxito");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Colaborador no encontrado con el ID: " + id);
+    }
+
+    @GetMapping("/rut/{rut}")
+    public ResponseEntity<?> buscarPorRut(@PathVariable String rut) {
+        logger.info(LogIcons.INFO + "Ejecución de método buscarPorRut con RUT: {}", rut);
+        Optional<Colaborador> colaborador = repository.buscarPorRutParcial(rut);
+        if (colaborador.isPresent()) {
+            logger.info(LogIcons.CHECK + "Colaborador encontrado: {}", colaborador.get());
+            return ResponseEntity.ok(colaborador.get());
+        } else {
+            logger.warn(LogIcons.WARNING + "Colaborador no encontrado con RUT: {}", rut);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Colaborador no encontrado con el RUT: " + rut);
+        }
+    }
+
+    @GetMapping("/email/{email}")
+    public ResponseEntity<?> buscarPorEmail(@PathVariable String email) {
+        logger.info(LogIcons.INFO + "Ejecución de método buscarPorEmail con email: {}", email);
+        Optional<Colaborador> colaborador = repository.buscarPorEmail(email);
+        if (colaborador.isPresent()) {
+            logger.info(LogIcons.CHECK + "Colaborador encontrado: {}", colaborador.get());
+            return ResponseEntity.ok(colaborador.get());
+        } else {
+            logger.warn(LogIcons.WARNING + "Colaborador no encontrado con email: {}", email);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Colaborador no encontrado con el email: " + email);
+        }
     }
 
 }
