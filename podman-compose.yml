@@ -1,47 +1,129 @@
 version: '3.9'
 services:
-    postgres_turnos:
-        image:  postgres:latest
-        container_name: dev_postgres_controlturnos
-        restart: always
-        environment:
-            POSTGRES_DB: turnos_db
-            POSTGRES_USER: turnouser
-            POSTGRES_PASSWORD: turnopass
-        ports:
-            - "5432:5432"
-        volumes:
-            - turnos_data:/var/lib/postgresql/data
-    app_turnos:
-        build: .
-        container_name: dev-app-turnos
-        image: sb-turnos:latest
-        restart: always
-        depends_on:
-            - postgres_turnos
-        ports:
-            - "8080:8080"
-        environment:
-            SPRING_DATASOURCE_URL: jdbc:postgresql://postgres_turnos:5432/turnos_db
-            SPRING_DATASOURCE_USERNAME: turnouser
-            SPRING_DATASOURCE_PASSWORD: turnopass
-        volumes:
-            - ./logs:/app/logs
 
-    pgadmin:
-        image: dpage/pgadmin4:latest
-        container_name: dev_pgadmin_turnos
-        restart: always
-        environment:
-            PGADMIN_DEFAULT_EMAIL: admin@timmynet.com
-            PGADMIN_DEFAULT_PASSWORD: adminpass
-        ports:
-            - "5050:80"
-        depends_on:
-            - postgres_turnos
-        volumes:
-            - pgadmin_data:/var/lib/pgadmin
+  # PostgreSQL para todos los servicios
+  postgres_turnos:
+    image: postgres:latest
+    container_name: dev_postgres_controlturnos
+    restart: always
+    environment:
+      POSTGRES_DB: turnos_db
+      POSTGRES_USER: turnouser
+      POSTGRES_PASSWORD: turnopass
+    ports:
+      - "5432:5432"
+    networks:
+      - micro-net
+    volumes:
+      - turnos_data:/var/lib/postgresql
+
+  # pgAdmin para visualizar la base de datos
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dev_pgadmin_turnos
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@timmynet.com
+      PGADMIN_DEFAULT_PASSWORD: adminpass
+    ports:
+      - "5050:80"
+    networks:
+      - micro-net
+    depends_on:
+      - postgres_turnos
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # Eureka Server
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    image: eureka-server:latest
+    ports:
+      - "8761:8761"
+    networks:
+      - micro-net
+    depends_on:
+      - postgres_turnos  
+    restart: always
+
+  # Auth Service (valida y genera API Keys)
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    image: auth-service:latest
+    ports:
+      - "8081:8081"
+    networks:
+      - micro-net
+    restart: always  
+    depends_on:
+      - eureka-server
+      - postgres_turnos
+    environment:
+      SPRING_APPLICATION_NAME: auth-service
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres_turnos:5432/turnos_db
+      SPRING_DATASOURCE_USERNAME: turnouser
+      SPRING_DATASOURCE_PASSWORD: turnopass
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka 
+
+  # Colaborador Service (CRUD)
+  app_turnos:
+    build:
+      context: ./colaborador-service
+      dockerfile: Dockerfile
+    container_name: dev-colaborador-service
+    image: sb-colaborador:latest
+    restart: always
+    depends_on:
+      - postgres_turnos
+      - eureka-server
+      - auth-service
+    ports:
+      - "8082:8082"
+    networks:
+      - micro-net
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres_turnos:5432/turnos_db
+      SPRING_DATASOURCE_USERNAME: turnouser
+      SPRING_DATASOURCE_PASSWORD: turnopass
+      SPRING_APPLICATION_NAME: colaborador-service
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      APIKEY_VALIDATION_URL: http://auth-service:8081/api/v1/auth/validar
+    volumes:
+      - ./logs:/app/logs
+
+  # Gateway Service
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    image: gateway-service:latest
+    ports:
+      - "8080:8080"
+    networks:
+      - micro-net
+    restart: always
+    depends_on:
+      - eureka-server
+      - auth-service
+      - app_turnos
+    environment:
+      SPRING_APPLICATION_NAME: gateway-service
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      APIKEY_VALIDATION_URL: http://auth-service:8081/api/v1/auth/validar
+
 volumes:
-    turnos_data:
-    pgadmin_data:
-    logs:
+  turnos_data:
+  pgadmin_data:
+  logs:
+
+networks:
+  micro-net:
+    driver: bridge
